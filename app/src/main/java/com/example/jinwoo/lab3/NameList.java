@@ -6,18 +6,25 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.DisplayMetrics;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.WindowManager;
 
 /**
- * Created by Jinwoo on 2016-03-17.
+ * En klass som sätter villkoren för utseendet för ett "item"
+ * i vårt fall en NameList. Ärver från View.
+ *
+ * @author Jinwoo Yu
+ * @version 2016.05.30
  */
-// Klass som sätter villkoren för utseendet för ett ListItem.
 public class NameList extends View {
     private String name;
     private Paint paint;
     private int screenHeight, screenWidth;
 
+    /**
+     * Konstruktorn.
+     * @param theContext Context.
+     * @param theName Namnet som ska sättas som ett item.
+     */
     public NameList(Context theContext, String theName){
         super(theContext);
         name = theName;
@@ -31,6 +38,10 @@ public class NameList extends View {
         init();
     }
 
+    /**
+     * Sätter textstorlek och färgar texten röd ifall det inte finns
+     * några matchande namn.
+     */
     public void init(){
         paint = new Paint();
         // Text storlek.
@@ -41,14 +52,23 @@ public class NameList extends View {
         }
     }
 
+    /**
+     * Kallas automatiskt och ritar ut texten på en canvas.
+     * @param canvas
+     */
     @Override
     protected void onDraw(Canvas canvas){
-        System.out.println("name = " + name);
         canvas.drawText(name, 10, 40, paint);
     }
 
+    /**
+     * Sätter hur stor area texten kan målas på. Är beroende
+     * beroende av skärmens storlek.
+     * @param widthMeasure
+     * @param heightMeasure
+     */
     @Override
     protected void onMeasure(int widthMeasure, int heightMeasure){
-        this.setMeasuredDimension(screenWidth/2, screenHeight/25); // Dela på 16
+        this.setMeasuredDimension(screenWidth/2, screenHeight/25);
     }
 }

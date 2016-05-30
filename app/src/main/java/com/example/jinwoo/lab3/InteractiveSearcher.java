@@ -25,19 +25,29 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
- * Created by Jinwoo on 2016-03-17.
+ * InteractiveSearcher är en komponent som ärver från EditText. Det är ett sökfält som
+ * användaren kan söka efter namn och få namnförslag från en namnlista som "poppar" upp
+ * när användaren skriver in bokstäver som matchar ett namn. Om ingen match hittas så
+ * står det. Namnförslagen hämtas från url:en "http://flask-afteach.rhcloud.com/getnames/".
+ * Varje sökning har ett eget id "searchIndex" som håller koll på vilken sökning som görs.
+ * Själva hämtningen av namnen hämtas genom en AsyncTask för att inte blockera UI-tråden.
+ * Servern returnerar ett JSON-objekt som konverteras och alla namnförslag läggs i en Hashmap.
+ * InteractiveSearcher använder sig av klassen "NameAdapter" som är en adapter och klassen
+ * "NameList" som är ett "item" på popupfönstret.
+ *
+ * @author Jinwoo Yu
+ * @version 2016.05.30
  */
 public class InteractiveSearcher extends EditText {
 
-    private int searchIndex, lengthLongestString ;
     private Context context;
-    private HashMap<Integer, ArrayList<String>> nameHashMap;    // På varje key (searchIndex) finns en array (results) med alla matchande namn.
+    private HashMap<Integer, ArrayList<String>> nameHashMap;
     private ListPopupWindow listPopupWindow;
     private boolean isClicked;
     private NameAdapter nameAdapter;
     public final static String noMatchingName = "No matching names found"; // Används i klassen NameList för att färga texten röd.
     private HttpURLConnection urlConnection;
-    private int nrNameSuggestions;
+    private int searchIndex, lengthLongestString ;
     private boolean noMatch;
     private float xdpi;
 
@@ -47,6 +57,9 @@ public class InteractiveSearcher extends EditText {
         init();
     }
 
+    /**
+     * Initierar variabler.
+     */
     private void init() {
         searchIndex = 0; // Första indexet.
 
@@ -61,7 +74,7 @@ public class InteractiveSearcher extends EditText {
         windowManager.getDefaultDisplay().getMetrics(metrics);
         xdpi = metrics.xdpi;
 
-        // Skapar ett tomt popup fönster för att visa namn från en ListAdapter.
+        // Skapar ett tomt popup fönster för att visa namn från en NameAdapter.
         listPopupWindow = new ListPopupWindow(context);
         listPopupWindow.setAnchorView(this); // Placera viewen under edittext.
 
@@ -101,8 +114,13 @@ public class InteractiveSearcher extends EditText {
 
     }
 
+    /**
+     * Innerklass som ärver från AsyncTask och hämtar namnförslagen från servern.
+     */
     public class NetworkAsyncTask extends AsyncTask<String, Void, String> {
-        // Startas direkt när AsyncTask kallas.
+        /**
+         *  Startas direkt när AsyncTask kallas.
+         */
         protected String doInBackground(String... theSearchString){
             String returnedText = "";
 
@@ -160,9 +178,10 @@ public class InteractiveSearcher extends EditText {
 
 
         /**
-         * Hitta den längsta strängen i en array. Kallas i funktionen parseJSONObject.
-         * @param resultsArray Strängen med alla namn i.
-         * @return Int som beskriver längden av den längsta strängen.
+         * Hitta den längsta strängen i en JSON-array. Används när
+         * popupfönstret ritas ut och bestämmer bredden.
+         * @param resultsArray JSON-Array med alla namn i.
+         * @return Int som beskriver längden av den längsta strängen i JSON-array:en.
          */
         private int getLengthOfLongestString(JSONArray resultsArray) {
             try{
@@ -170,7 +189,9 @@ public class InteractiveSearcher extends EditText {
                 for (int idx = 0; idx < resultsArray.length(); idx++) {
                     try{
                         int string = resultsArray.get(idx).toString().length();
-                        if (string > maxLength) maxLength = string;
+                        if (string > maxLength)
+                            // Om en ny större sträng hittats.
+                            maxLength = string;
                     }catch (Exception e){
                         System.out.println("Error getting the length of a String.");
                         e.printStackTrace();
@@ -182,26 +203,27 @@ public class InteractiveSearcher extends EditText {
                 System.out.println("Error getting the length of a String.");
                 e.printStackTrace();
             }
-            return 600; // TODO: ful kod, borde returna ett standard värde.
+            return 0;
         }
 
         /**
-         * parses JSON and initializes searchMap TODO:ändra kommentaren här
-         * @param resultsArray
+         * Sätter in alla namn från JSON-Array:en resultsArray till en hashmap
+         * med "searchIndex" som key och en lista med alla namn.
+         * @param resultsArray JSON-array med namnförslagen i.
          */
         private void addNamesToHashmap(JSONArray resultsArray) {
             try {
                 ArrayList<String> namesList = new ArrayList<String>();
 
-                // Lägg alla namn från JSON-array till vår hashmap och listan med namn.
+                // Ifall det inte finns några matchande namn.
                 if (resultsArray.length() == 0) {
                     namesList.add(noMatchingName);
                     nameHashMap.put(searchIndex, namesList);
                     noMatch = true;
                 }
                 else {
+                    // Lägg alla namn från JSON-array till vår hashmap och listan med namn.
                     for (int idx = 0; idx < resultsArray.length(); idx++) {
-                        // Lägg namnen från Json-array till vår temp array.
                         namesList.add(resultsArray.get(idx).toString());
                     }
                     nameHashMap.put(searchIndex, namesList);
@@ -209,14 +231,16 @@ public class InteractiveSearcher extends EditText {
                 }
             }
             catch(Exception e) {
-                System.out.println("Error when parsing JSON.");
+                System.out.println("Error when adding names to the hashmap.");
                 e.printStackTrace();
             }
         }
 
         /**
          * onPostExecute kallas efter all data hämtats från servern.
-         * @param theNames
+         * Används till att lägga alla namn i en hashmap och uppdatera
+         * och visa popup-fönstret med alla namnförslag.
+         * @param theNames Sträng med alla namnförslag från servern.
          */
         protected void onPostExecute(String theNames) {
             try{
@@ -228,12 +252,8 @@ public class InteractiveSearcher extends EditText {
                 // Lägga dit namnen till en hashmap.
                 addNamesToHashmap(resultsArray);
 
-                // Hitta hur lång den längsta strängen i JSON-array är. Används när ritar ut listan.
+                // Hitta hur lång den längsta strängen i JSON-array är. Används när popup-fönstret ritas ut.
                 lengthLongestString = getLengthOfLongestString(resultsArray);
-
-                // Antal förslagna namn.
-                nrNameSuggestions = resultsArray.length();
-
             }catch (Exception e){
                 System.out.println("Error in onPostExecute.");
                 e.printStackTrace();
@@ -243,12 +263,14 @@ public class InteractiveSearcher extends EditText {
             nameAdapter = new NameAdapter(context, nameHashMap.get(searchIndex));
 
             // Popup-listan ska vara lika bred som det längsta namnförslaget.
+            // Använder skärmens dpi för att beräkna det.
             if(noMatch){
                 listPopupWindow.setWidth(noMatchingName.length() * (int)xdpi / 16);
             }else{
                 listPopupWindow.setWidth(lengthLongestString * (int)xdpi / 16);
             }
 
+            // Höjden på popup-fönstret ska alltid wrap_content.
             listPopupWindow.setHeight(WindowManager.LayoutParams.WRAP_CONTENT);
 
             // Visa adaptern.
